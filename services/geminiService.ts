@@ -1,8 +1,6 @@
 import { GoogleGenAI, Type } from "@google/genai";
 import { MarketingCardData } from "../types";
 
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-
 const SYSTEM_INSTRUCTION = `
 You are the Chief Creative Officer for "Shining AI" (闪灵AI). 
 Your task is to generate content for 4 daily marketing posters (H5 format) targeting advertising professionals, directors, creative directors, and video creators.
@@ -26,12 +24,25 @@ Generate 4 distinct cards in a JSON array.
 Tone: Professional, Innovative, High-Tech, Efficient, Aesthetic.
 `;
 
-export const generateMarketingCopy = async (userPrompt?: string): Promise<MarketingCardData[]> => {
-  if (!process.env.API_KEY) {
-    throw new Error("API Key is missing. Please set 'API_KEY' in your environment variables.");
-  }
+// Helper to get API Key safely across environments
+const getApiKey = (): string | undefined => {
+  return process.env.API_KEY;
+};
 
+// Lazy initialization function
+const getAI = () => {
+  const apiKey = getApiKey();
+  if (!apiKey) {
+    console.error("API Key not found. Checked process.env.API_KEY");
+    throw new Error("API Key is missing. Please set API_KEY in your environment settings.");
+  }
+  return new GoogleGenAI({ apiKey });
+};
+
+export const generateMarketingCopy = async (userPrompt?: string): Promise<MarketingCardData[]> => {
   try {
+    const ai = getAI(); // Initialize here, not at top level
+
     let promptText = "Generate today's 4 marketing cards based on the system instructions.";
     
     if (userPrompt && userPrompt.trim()) {
@@ -88,9 +99,13 @@ export const generateMarketingCopy = async (userPrompt?: string): Promise<Market
 };
 
 export const generateCardImage = async (prompt: string): Promise<string> => {
-  if (!process.env.API_KEY) return `https://picsum.photos/seed/${Math.random()}/600/900`;
-
   try {
+    // Check key existence without throwing immediately for images (can return fallback)
+    const apiKey = getApiKey();
+    if (!apiKey) return `https://picsum.photos/seed/${Math.random()}/600/900`;
+    
+    const ai = new GoogleGenAI({ apiKey });
+
     // We append specific style instructions to ensure consistency
     // Refined for Apple/Google aesthetic + Klein Blue/White
     const enhancedPrompt = `High-end minimalist design, Apple style, Google Material Design 3D, International Klein Blue (#002FA7) and Matte White color palette. Abstract geometric shapes, soft ambient occlusion shadows, clean composition, futuristic corporate art, 8k resolution, ${prompt}. No text, no letters, no characters. Bright, airy, and premium.`;
