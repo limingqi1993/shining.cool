@@ -1,8 +1,10 @@
 import { GoogleGenAI, Type } from "@google/genai";
 import { MarketingCardData } from "../types";
 
-// Initialize Gemini Client
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+// Ensure process.env.API_KEY exists or fallback to empty string to prevent crash
+// Note: Requests will fail if key is missing, but the app will load.
+const apiKey = process.env.API_KEY || '';
+const ai = new GoogleGenAI({ apiKey });
 
 const SYSTEM_INSTRUCTION = `
 You are the Chief Creative Officer for "Shining AI" (闪灵AI). 
@@ -28,6 +30,10 @@ Tone: Professional, Innovative, High-Tech, Efficient, Aesthetic.
 `;
 
 export const generateMarketingCopy = async (userPrompt?: string): Promise<MarketingCardData[]> => {
+  if (!apiKey) {
+    throw new Error("API Key is missing. Please configure Vercel Environment Variables.");
+  }
+
   try {
     let promptText = "Generate today's 4 marketing cards based on the system instructions.";
     
@@ -85,6 +91,8 @@ export const generateMarketingCopy = async (userPrompt?: string): Promise<Market
 };
 
 export const generateCardImage = async (prompt: string): Promise<string> => {
+  if (!apiKey) return `https://picsum.photos/seed/${Math.random()}/600/900`;
+
   try {
     // We append specific style instructions to ensure consistency
     // Refined for Apple/Google aesthetic + Klein Blue/White
