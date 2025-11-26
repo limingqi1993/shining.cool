@@ -20,7 +20,7 @@ Output Requirement:
 Return a JSON Object with two main keys: "xiaohongshu" and "cards".
 
 1. "xiaohongshu":
-   - Title: Catchy, emoji-rich title for social media.
+   - Title: Catchy, emoji-rich title (MAX 20 CHARACTERS). STRICT LIMIT.
    - Content: Engaging social media copy (approx 100-150 words) promoting Shining AI's efficiency.
    - Tags: 5-8 relevant hashtags.
 
@@ -87,7 +87,7 @@ export const generateMarketingCopy = async (userPrompt?: string): Promise<Genera
             xiaohongshu: {
               type: Type.OBJECT,
               properties: {
-                title: { type: Type.STRING, description: "Social media title with emojis" },
+                title: { type: Type.STRING, description: "Social media title with emojis. MAX 20 CHARACTERS." },
                 content: { type: Type.STRING, description: "Main post body text" },
                 tags: { type: Type.ARRAY, items: { type: Type.STRING }, description: "Hashtags" }
               },

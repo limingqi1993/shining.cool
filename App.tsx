@@ -44,7 +44,7 @@ const getRandomItems = <T,>(array: T[], count: number): T[] => {
 };
 
 // Copy Button Component
-const CopyButton: React.FC<{ text: string }> = ({ text }) => {
+const CopyButton: React.FC<{ text: string, label?: string }> = ({ text, label }) => {
     const [copied, setCopied] = useState(false);
     
     const handleCopy = () => {
@@ -56,10 +56,11 @@ const CopyButton: React.FC<{ text: string }> = ({ text }) => {
     return (
         <button 
             onClick={handleCopy}
-            className="ml-2 p-1.5 bg-gray-100 hover:bg-gray-200 text-gray-500 rounded-lg transition-colors"
+            className="flex items-center gap-2 px-3 py-1.5 bg-gray-100 hover:bg-gray-200 text-gray-600 rounded-lg transition-colors text-xs font-bold"
             title="复制"
         >
             {copied ? <Check className="w-3 h-3 text-green-600" /> : <Copy className="w-3 h-3" />}
+            {label && <span>{label}</span>}
         </button>
     );
 };
@@ -161,6 +162,9 @@ const App: React.FC = () => {
       }
       setIsDownloading(false);
   };
+
+  // Helper to get formatted hashtags (ensure single hash)
+  const getFormattedTags = (tags: string[]) => tags.map(t => `#${t.replace(/^#/, '')}`).join(' ');
 
   if (step === GenerationStep.IDLE) {
     return (
@@ -286,28 +290,26 @@ const App: React.FC = () => {
                     
                     <div className="space-y-4">
                         <div className="flex items-start">
-                            <span className="text-xs font-bold text-gray-400 w-12 mt-1 shrink-0">TITLE</span>
-                            <div className="flex-1 font-bold text-lg text-gray-800 flex items-center">
-                                {xhsData.title}
-                                <CopyButton text={xhsData.title} />
+                            <span className="text-xs font-bold text-gray-400 w-16 mt-1 shrink-0">TITLE</span>
+                            <div className="flex-1 font-bold text-lg text-gray-800 flex items-center justify-between">
+                                <span>{xhsData.title}</span>
+                                <CopyButton text={xhsData.title} label="复制标题" />
                             </div>
                         </div>
                         
-                        <div className="flex items-start">
-                            <span className="text-xs font-bold text-gray-400 w-12 mt-1 shrink-0">BODY</span>
-                            <div className="flex-1 text-sm text-gray-600 leading-relaxed whitespace-pre-wrap flex items-start">
-                                <div>{xhsData.content}</div>
-                                <CopyButton text={xhsData.content} />
-                            </div>
-                        </div>
-                        
-                        <div className="flex items-start">
-                            <span className="text-xs font-bold text-gray-400 w-12 mt-1 shrink-0">TAGS</span>
-                            <div className="flex-1 flex flex-wrap gap-2">
-                                {xhsData.tags.map((tag, i) => (
-                                    <span key={i} className="text-blue-600 text-sm">#{tag}</span>
-                                ))}
-                                <CopyButton text={xhsData.tags.map(t => `#${t}`).join(' ')} />
+                        <div className="flex items-start border-t border-gray-100 pt-4">
+                            <span className="text-xs font-bold text-gray-400 w-16 mt-1 shrink-0">CONTENT</span>
+                            <div className="flex-1">
+                                <div className="text-sm text-gray-600 leading-relaxed whitespace-pre-wrap mb-4">
+                                    {xhsData.content}
+                                </div>
+                                <div className="text-blue-600 font-bold text-sm mb-3">
+                                    {getFormattedTags(xhsData.tags)}
+                                </div>
+                                <CopyButton 
+                                    text={`${xhsData.content}\n\n${getFormattedTags(xhsData.tags)}`} 
+                                    label="一键复制正文+标签" 
+                                />
                             </div>
                         </div>
                     </div>

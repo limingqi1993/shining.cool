@@ -46,13 +46,13 @@ export const PosterCard: React.FC<PosterCardProps> = ({ data, imageUrl, isGenera
   };
 
   return (
-    <div className="group relative w-full aspect-[9/16] rounded-3xl shadow-xl transition-all hover:shadow-2xl hover:scale-[1.01] bg-white select-none">
+    <div className="group relative w-full aspect-[3/4] shadow-xl transition-all hover:shadow-2xl hover:scale-[1.01] bg-white select-none">
       
-      {/* Capture Area */}
+      {/* Capture Area - No Rounded Corners */}
       <div 
         id={`poster-card-${data.id}`}
         ref={cardRef} 
-        className="relative w-full h-full bg-white flex flex-col rounded-3xl overflow-hidden"
+        className="relative w-full h-full bg-white flex flex-col overflow-hidden"
       >
         
         {/* Background Image Layer */}
@@ -99,11 +99,11 @@ export const PosterCard: React.FC<PosterCardProps> = ({ data, imageUrl, isGenera
 
             {/* Main Text */}
             <div className="mt-auto mb-16">
-                 {/* Tags */}
+                 {/* Tags - Ensure single hash */}
                 <div className="flex flex-wrap gap-2 mb-5">
                     {data.tags.map((tag, i) => (
                         <span key={i} className="px-2 py-0.5 text-[10px] font-bold tracking-wider text-[#002FA7] bg-white rounded-sm shadow-sm">
-                            #{tag}
+                            #{tag.replace(/^#/, '')}
                         </span>
                     ))}
                 </div>
@@ -117,7 +117,7 @@ export const PosterCard: React.FC<PosterCardProps> = ({ data, imageUrl, isGenera
                 
                 <div className="text-xs text-white/90 leading-relaxed font-light">
                     {data.isPromoCard ? (
-                        <div className="space-y-1 bg-white/10 backdrop-blur-sm p-4 rounded-xl border border-white/20">
+                        <div className="space-y-1 bg-white/10 backdrop-blur-sm p-4 border border-white/20">
                            {data.body.split('\n').map((line, i) => <div key={i}>{line}</div>)}
                         </div>
                     ) : (
