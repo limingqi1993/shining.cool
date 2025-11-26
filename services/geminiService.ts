@@ -1,7 +1,6 @@
 import { GoogleGenAI, Type } from "@google/genai";
 import { MarketingCardData } from "../types";
 
-// Access environment variables using process.env.API_KEY as per guidelines
 const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
 const SYSTEM_INSTRUCTION = `
@@ -29,7 +28,7 @@ Tone: Professional, Innovative, High-Tech, Efficient, Aesthetic.
 
 export const generateMarketingCopy = async (userPrompt?: string): Promise<MarketingCardData[]> => {
   if (!process.env.API_KEY) {
-    throw new Error("API Key is missing. Please set 'API_KEY' in your Environment Variables.");
+    throw new Error("API Key is missing. Please set 'API_KEY' in your environment variables.");
   }
 
   try {

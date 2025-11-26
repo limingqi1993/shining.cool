@@ -25,7 +25,8 @@ export const PosterCard: React.FC<PosterCardProps> = ({ data, imageUrl, isGenera
           const dataUrl = await toPng(cardRef.current!, { 
              cacheBust: true, 
              pixelRatio: 3, // High quality for saving
-             backgroundColor: '#ffffff'
+             backgroundColor: '#ffffff',
+             useCORS: true // IMPORTANT: Allow cross-origin images (like from Picsum or Gemini)
           });
           setFinalImageUrl(dataUrl);
         } catch (err) {
@@ -52,6 +53,7 @@ export const PosterCard: React.FC<PosterCardProps> = ({ data, imageUrl, isGenera
                 src={imageUrl} 
                 alt={data.visualPrompt} 
                 className="w-full h-full object-cover"
+                crossOrigin="anonymous" 
             />
             ) : (
             <div className="w-full h-full flex items-center justify-center bg-gray-50">
