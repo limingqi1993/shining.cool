@@ -1,9 +1,9 @@
 import React, { useState, useMemo } from 'react';
-import { GeneratedImage, GenerationStep, MarketingCardData } from './types';
+import { GeneratedImage, GenerationStep, MarketingCardData, XiaohongshuContent } from './types';
 import { generateCardImage, generateMarketingCopy } from './services/geminiService';
 import { PosterCard } from './components/PosterCard';
 import { LoadingScreen } from './components/LoadingScreen';
-import { Zap, LayoutGrid, ChevronRight, Sparkles, TrendingUp, ArrowUpRight, Target, Download, Loader2 } from 'lucide-react';
+import { Zap, LayoutGrid, ChevronRight, Sparkles, TrendingUp, ArrowUpRight, Target, Download, Loader2, Copy, Check } from 'lucide-react';
 import { toPng } from 'html-to-image';
 
 // Large pool of topics for random selection
@@ -23,7 +23,6 @@ const TOPIC_POOL = [
     "🕰️ 怀旧营销", "🚀 第二曲线", "🧬 数字孪生", "🧿 裸眼3D"
 ];
 
-// Strategies tailored for Shining AI features
 const STRATEGY_POOL = [
     { title: "复刻《繁花》光影美学", desc: "用自然语言搜索王家卫式抽帧与色彩，一键生成致敬海报。" },
     { title: "3分钟拆解爆款短剧", desc: "利用视频理解能力，快速提炼反转结构，生成拉片分镜。" },
@@ -39,26 +38,44 @@ const STRATEGY_POOL = [
     { title: "情感博主治愈系封面", desc: "搜索'日落'、'海边背影'、'胶片颗粒'，营造高氛围感封面。" }
 ];
 
-// Helper to get random items
 const getRandomItems = <T,>(array: T[], count: number): T[] => {
     const shuffled = [...array].sort(() => 0.5 - Math.random());
     return shuffled.slice(0, count);
 };
 
+// Copy Button Component
+const CopyButton: React.FC<{ text: string }> = ({ text }) => {
+    const [copied, setCopied] = useState(false);
+    
+    const handleCopy = () => {
+        navigator.clipboard.writeText(text);
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2000);
+    };
+
+    return (
+        <button 
+            onClick={handleCopy}
+            className="ml-2 p-1.5 bg-gray-100 hover:bg-gray-200 text-gray-500 rounded-lg transition-colors"
+            title="复制"
+        >
+            {copied ? <Check className="w-3 h-3 text-green-600" /> : <Copy className="w-3 h-3" />}
+        </button>
+    );
+};
+
 const App: React.FC = () => {
   const [step, setStep] = useState<GenerationStep>(GenerationStep.IDLE);
   const [cards, setCards] = useState<MarketingCardData[]>([]);
+  const [xhsData, setXhsData] = useState<XiaohongshuContent | null>(null);
   const [images, setImages] = useState<GeneratedImage[]>([]);
-  const [, setActiveCardIndex] = useState<number>(0);
   const [loadingMsg, setLoadingMsg] = useState<string>('');
   const [inspiration, setInspiration] = useState<string>('');
   const [isDownloading, setIsDownloading] = useState(false);
 
-  // Get random content on every refresh/mount
   const randomTopics = useMemo(() => getRandomItems(TOPIC_POOL, 15), []);
   const randomStrategies = useMemo(() => getRandomItems(STRATEGY_POOL, 4), []);
 
-  // Helper to find image for a card
   const getCardImage = (id: number) => images.find(img => img.cardId === id)?.imageUrl;
 
   const handleGenerate = async () => {
@@ -66,20 +83,16 @@ const App: React.FC = () => {
     setLoadingMsg('正在分析趋势并撰写文案...');
     setCards([]);
     setImages([]);
-    setActiveCardIndex(0);
+    setXhsData(null);
 
     try {
-      // 1. Generate Copy
-      const generatedCards = await generateMarketingCopy(inspiration);
-      setCards(generatedCards);
+      const response = await generateMarketingCopy(inspiration);
+      setXhsData(response.xiaohongshu);
+      setCards(response.cards as MarketingCardData[]);
       
-      // 2. Start Generating Images (Parallel-ish)
       setStep(GenerationStep.GENERATING_IMAGES);
       setLoadingMsg('正在渲染未来感视觉...');
-
-      // We process image generation one by one to avoid rate limits or overwhelming the user
-      // Also allows the user to see text immediately
-      processImageQueue(generatedCards);
+      processImageQueue(response.cards as MarketingCardData[]);
 
     } catch (error) {
       console.error(error);
@@ -101,10 +114,8 @@ const App: React.FC = () => {
   };
 
   const regenerateSingleImage = async (cardId: number, prompt: string) => {
-    // Optimistic UI update or loading state logic could go here
-    // For now, we just overwrite the image
     const tempImages = images.filter(img => img.cardId !== cardId);
-    setImages(tempImages); // Remove old image to show loading state in component
+    setImages(tempImages);
 
     try {
         const newUrl = await generateCardImage(prompt);
@@ -125,24 +136,20 @@ const App: React.FC = () => {
   const handleDownloadAll = async () => {
       setIsDownloading(true);
       const cardIds = cards.map(c => c.id);
-      
-      // Simple delay helper
       const wait = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
       for (const id of cardIds) {
           const element = document.getElementById(`poster-card-${id}`);
           if (element) {
               try {
-                  // Wait a bit between downloads to ensure browser doesn't block them
                   if (id > 1) await wait(500);
-
                   const dataUrl = await toPng(element, { 
-                      cacheBust: true, 
-                      pixelRatio: 2, 
-                      useCORS: true,
-                      backgroundColor: '#ffffff'
+                      cacheBust: true, pixelRatio: 2, useCORS: true, backgroundColor: '#ffffff',
+                      filter: (node) => {
+                          // Exclude the download button from the captured image
+                          return !node.classList?.contains('download-btn-exclude');
+                      }
                   });
-                  
                   const link = document.createElement('a');
                   link.download = `闪灵AI-营销海报-${id}.png`;
                   link.href = dataUrl;
@@ -155,11 +162,9 @@ const App: React.FC = () => {
       setIsDownloading(false);
   };
 
-  // Intro Screen
   if (step === GenerationStep.IDLE) {
     return (
       <div className="min-h-screen bg-[#F5F5F7] text-[#1D1D1F] flex flex-col relative overflow-hidden font-sans">
-        {/* Abstract Background - Minimalist */}
         <div className="absolute top-[-20%] right-[-20%] w-[80%] h-[80%] rounded-full bg-gradient-to-br from-blue-100 to-white blur-3xl opacity-60 z-0"></div>
         <div className="absolute bottom-[-10%] left-[-10%] w-[60%] h-[60%] rounded-full bg-gradient-to-tr from-[#002FA7]/10 to-transparent blur-3xl z-0"></div>
 
@@ -175,7 +180,6 @@ const App: React.FC = () => {
                 Marketing Generator
             </p>
 
-            {/* Inspiration Input Window */}
             <div className="w-full max-w-2xl mb-8 relative group text-left">
                 <div className="absolute -inset-0.5 bg-gradient-to-r from-blue-200 to-[#002FA7]/30 rounded-3xl opacity-30 group-hover:opacity-60 transition duration-500 blur-sm"></div>
                 <div className="relative bg-white rounded-3xl p-1 shadow-xl">
@@ -201,10 +205,7 @@ const App: React.FC = () => {
                 </span>
             </button>
 
-            {/* Grid for Inspiration Sections */}
             <div className="w-full max-w-4xl grid grid-cols-1 md:grid-cols-2 gap-8">
-                
-                {/* 1. Trending Topics */}
                 <div className="bg-white/40 backdrop-blur-md rounded-3xl p-6 border border-white/50 shadow-sm h-full flex flex-col">
                     <div className="flex items-center gap-2 mb-4 opacity-80">
                         <TrendingUp className="w-4 h-4 text-[#002FA7]" />
@@ -223,7 +224,6 @@ const App: React.FC = () => {
                     </div>
                 </div>
 
-                {/* 2. Explosive Strategies */}
                 <div className="bg-white/40 backdrop-blur-md rounded-3xl p-6 border border-white/50 shadow-sm h-full">
                     <div className="flex items-center gap-2 mb-4 opacity-80">
                         <Target className="w-4 h-4 text-[#002FA7]" />
@@ -248,38 +248,18 @@ const App: React.FC = () => {
                         ))}
                     </div>
                 </div>
-
-            </div>
-
-            {/* Footer Icons */}
-            <div className="mt-16 flex gap-12 opacity-60">
-                <div className="flex flex-col items-center group cursor-default">
-                    <div className="p-3 bg-white rounded-2xl shadow-md mb-3 group-hover:-translate-y-1 transition-transform">
-                        <LayoutGrid className="w-6 h-6 text-[#002FA7]" />
-                    </div>
-                    <span className="text-xs font-bold text-gray-400 tracking-wider">SMART LAYOUT</span>
-                </div>
-                <div className="flex flex-col items-center group cursor-default">
-                     <div className="p-3 bg-white rounded-2xl shadow-md mb-3 group-hover:-translate-y-1 transition-transform">
-                        <Zap className="w-6 h-6 text-[#002FA7]" />
-                     </div>
-                    <span className="text-xs font-bold text-gray-400 tracking-wider">AI COPYWRITING</span>
-                </div>
             </div>
         </div>
       </div>
     );
   }
 
-  // Loading State
   if (step === GenerationStep.GENERATING_COPY) {
     return <LoadingScreen status={loadingMsg} />;
   }
 
-  // Results View
   return (
     <div className="min-h-screen bg-[#F5F5F7] text-[#1D1D1F] pb-12 font-sans selection:bg-[#002FA7] selection:text-white">
-        {/* App Bar */}
         <header className="sticky top-0 z-40 bg-white/80 backdrop-blur-md border-b border-gray-200 px-6 py-4 flex justify-between items-center shadow-sm">
             <div className="flex items-center space-x-2">
                 <div className="w-6 h-6 bg-[#002FA7] rounded-md flex items-center justify-center text-white">
@@ -296,7 +276,45 @@ const App: React.FC = () => {
         </header>
 
         <main className="container mx-auto px-4 pt-10">
-            <div className="flex flex-col md:flex-row justify-between items-end mb-10 px-2 gap-4">
+            {/* Xiaohongshu Section */}
+            {xhsData && (
+                <div className="mb-10 p-6 bg-white rounded-3xl shadow-lg border border-gray-100">
+                    <div className="flex items-center gap-2 mb-4">
+                        <span className="px-2 py-1 text-xs font-bold text-white bg-red-500 rounded-md">小红书</span>
+                        <h3 className="text-sm font-bold text-gray-400 uppercase tracking-widest">Social Media Copy</h3>
+                    </div>
+                    
+                    <div className="space-y-4">
+                        <div className="flex items-start">
+                            <span className="text-xs font-bold text-gray-400 w-12 mt-1 shrink-0">TITLE</span>
+                            <div className="flex-1 font-bold text-lg text-gray-800 flex items-center">
+                                {xhsData.title}
+                                <CopyButton text={xhsData.title} />
+                            </div>
+                        </div>
+                        
+                        <div className="flex items-start">
+                            <span className="text-xs font-bold text-gray-400 w-12 mt-1 shrink-0">BODY</span>
+                            <div className="flex-1 text-sm text-gray-600 leading-relaxed whitespace-pre-wrap flex items-start">
+                                <div>{xhsData.content}</div>
+                                <CopyButton text={xhsData.content} />
+                            </div>
+                        </div>
+                        
+                        <div className="flex items-start">
+                            <span className="text-xs font-bold text-gray-400 w-12 mt-1 shrink-0">TAGS</span>
+                            <div className="flex-1 flex flex-wrap gap-2">
+                                {xhsData.tags.map((tag, i) => (
+                                    <span key={i} className="text-blue-600 text-sm">#{tag}</span>
+                                ))}
+                                <CopyButton text={xhsData.tags.map(t => `#${t}`).join(' ')} />
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            <div className="flex flex-col md:flex-row justify-between items-end mb-8 px-2 gap-4">
                 <div>
                     <h2 className="text-4xl font-black tracking-tight mb-2">今日产出</h2>
                     <div className="flex items-center text-gray-500 font-medium text-sm">
@@ -316,7 +334,6 @@ const App: React.FC = () => {
                         </div>
                     )}
 
-                    {/* One-Click Download Button */}
                     <button 
                         onClick={handleDownloadAll}
                         disabled={isDownloading || step !== GenerationStep.COMPLETE}
@@ -341,7 +358,6 @@ const App: React.FC = () => {
                 </div>
             </div>
 
-            {/* Grid Layout */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
                 {cards.map((card) => (
                     <PosterCard 

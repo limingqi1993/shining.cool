@@ -8,6 +8,17 @@ export interface MarketingCardData {
   isPromoCard?: boolean;
 }
 
+export interface XiaohongshuContent {
+  title: string;
+  content: string;
+  tags: string[];
+}
+
+export interface GeneratedContentResponse {
+  xiaohongshu: XiaohongshuContent;
+  cards: Omit<MarketingCardData, 'id'>[];
+}
+
 export interface GeneratedImage {
   cardId: number;
   imageUrl: string;

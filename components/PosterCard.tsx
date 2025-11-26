@@ -1,6 +1,7 @@
-import React, { useRef } from 'react';
+import React, { useRef, useState } from 'react';
 import { MarketingCardData } from '../types';
-import { Sparkles, Loader2, Zap } from 'lucide-react';
+import { Sparkles, Loader2, Zap, Download } from 'lucide-react';
+import { toPng } from 'html-to-image';
 
 interface PosterCardProps {
   data: MarketingCardData;
@@ -11,15 +12,47 @@ interface PosterCardProps {
 
 export const PosterCard: React.FC<PosterCardProps> = ({ data, imageUrl, isGeneratingImage, onRegenerateImage }) => {
   const cardRef = useRef<HTMLDivElement>(null);
+  const [downloading, setDownloading] = useState(false);
+
+  const handleDownloadSingle = async (e: React.MouseEvent) => {
+    e.stopPropagation(); // Prevent any parent clicks
+    if (!cardRef.current || downloading || !imageUrl) return;
+
+    setDownloading(true);
+    try {
+        // Use a small delay to ensure rendering context is stable
+        await new Promise(r => setTimeout(r, 100));
+
+        const dataUrl = await toPng(cardRef.current, {
+            cacheBust: true,
+            pixelRatio: 2,
+            useCORS: true,
+            backgroundColor: '#ffffff',
+            filter: (node) => {
+                // IMPORTANT: Exclude elements with this class from the screenshot
+                return !node.classList?.contains('download-btn-exclude');
+            }
+        });
+
+        const link = document.createElement('a');
+        link.download = `闪灵AI-海报-${data.id}.png`;
+        link.href = dataUrl;
+        link.click();
+    } catch (err) {
+        console.error("Failed to download card", err);
+    } finally {
+        setDownloading(false);
+    }
+  };
 
   return (
-    <div className="group relative w-full aspect-[9/16] rounded-3xl overflow-hidden shadow-xl transition-all hover:shadow-2xl hover:scale-[1.01] bg-white select-none">
+    <div className="group relative w-full aspect-[9/16] rounded-3xl shadow-xl transition-all hover:shadow-2xl hover:scale-[1.01] bg-white select-none">
       
-      {/* Capture Area - Added ID for the downloader to target */}
+      {/* Capture Area */}
       <div 
         id={`poster-card-${data.id}`}
         ref={cardRef} 
-        className="relative w-full h-full bg-white flex flex-col"
+        className="relative w-full h-full bg-white flex flex-col rounded-3xl overflow-hidden"
       >
         
         {/* Background Image Layer */}
@@ -53,7 +86,7 @@ export const PosterCard: React.FC<PosterCardProps> = ({ data, imageUrl, isGenera
             {/* Header */}
             <div className="flex justify-between items-start">
                 <div className="flex items-center space-x-2 bg-white/10 backdrop-blur-md px-3 py-1.5 rounded-full border border-white/20 shadow-sm">
-                    {/* Updated Logo to Lightning (Zap) */}
+                    {/* Logo */}
                     <div className="w-4 h-4 bg-white rounded-full flex items-center justify-center">
                         <Zap className="w-2.5 h-2.5 text-[#002FA7] fill-current" />
                     </div>
@@ -105,6 +138,22 @@ export const PosterCard: React.FC<PosterCardProps> = ({ data, imageUrl, isGenera
                 </div>
             </div>
         </div>
+
+        {/* INDIVIDUAL DOWNLOAD BUTTON - Excluded from snapshot via class 'download-btn-exclude' */}
+        {imageUrl && (
+            <button
+                onClick={handleDownloadSingle}
+                className="download-btn-exclude absolute bottom-4 right-4 z-50 p-3 bg-white text-[#002FA7] rounded-full shadow-2xl hover:scale-110 active:scale-90 transition-all opacity-0 group-hover:opacity-100 duration-300"
+                title="保存海报"
+            >
+                {downloading ? (
+                    <Loader2 className="w-5 h-5 animate-spin" />
+                ) : (
+                    <Download className="w-5 h-5" />
+                )}
+            </button>
+        )}
+
       </div>
     </div>
   );
