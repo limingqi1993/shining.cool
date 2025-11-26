@@ -1,6 +1,6 @@
 import React, { useRef, useState } from 'react';
 import { MarketingCardData } from '../types';
-import { Sparkles, Loader2, Zap, Download } from 'lucide-react';
+import { Sparkles, Loader2, Zap, Download, RefreshCw } from 'lucide-react';
 import { toPng } from 'html-to-image';
 
 interface PosterCardProps {
@@ -43,6 +43,11 @@ export const PosterCard: React.FC<PosterCardProps> = ({ data, imageUrl, isGenera
     } finally {
         setDownloading(false);
     }
+  };
+
+  const handleRegenerateClick = (e: React.MouseEvent) => {
+      e.stopPropagation();
+      onRegenerateImage();
   };
 
   return (
@@ -139,7 +144,16 @@ export const PosterCard: React.FC<PosterCardProps> = ({ data, imageUrl, isGenera
             </div>
         </div>
 
-        {/* INDIVIDUAL DOWNLOAD BUTTON - Excluded from snapshot via class 'download-btn-exclude' */}
+        {/* REGENERATE BUTTON - Excluded from snapshot */}
+        <button
+            onClick={handleRegenerateClick}
+            className="download-btn-exclude absolute top-4 right-4 z-50 p-2 bg-white/20 backdrop-blur-md text-white rounded-full hover:bg-white hover:text-[#002FA7] transition-all opacity-0 group-hover:opacity-100 duration-300 border border-white/30"
+            title="重新生成背景"
+        >
+            <RefreshCw className={`w-4 h-4 ${isGeneratingImage ? 'animate-spin' : ''}`} />
+        </button>
+
+        {/* INDIVIDUAL DOWNLOAD BUTTON - Excluded from snapshot */}
         {imageUrl && (
             <button
                 onClick={handleDownloadSingle}
