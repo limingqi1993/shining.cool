@@ -1,7 +1,6 @@
-import React, { useRef, useState, useEffect } from 'react';
+import React, { useRef } from 'react';
 import { MarketingCardData } from '../types';
-import { Sparkles, Loader2, Download, RefreshCw } from 'lucide-react';
-import { toPng } from 'html-to-image';
+import { Sparkles, Loader2, Zap } from 'lucide-react';
 
 interface PosterCardProps {
   data: MarketingCardData;
@@ -12,39 +11,16 @@ interface PosterCardProps {
 
 export const PosterCard: React.FC<PosterCardProps> = ({ data, imageUrl, isGeneratingImage, onRegenerateImage }) => {
   const cardRef = useRef<HTMLDivElement>(null);
-  const [finalImageUrl, setFinalImageUrl] = useState<string | null>(null);
-
-  // Generate the full image for native saving (Long Press / Right Click)
-  useEffect(() => {
-    let timeoutId: ReturnType<typeof setTimeout>;
-
-    if (imageUrl && cardRef.current && !isGeneratingImage) {
-      // Delay to ensure DOM render is complete (fonts, etc)
-      timeoutId = setTimeout(async () => {
-        try {
-          const dataUrl = await toPng(cardRef.current!, { 
-             cacheBust: true, 
-             pixelRatio: 3, // High quality for saving
-             backgroundColor: '#ffffff',
-             useCORS: true // IMPORTANT: Allow cross-origin images (like from Picsum or Gemini)
-          });
-          setFinalImageUrl(dataUrl);
-        } catch (err) {
-          console.error('Failed to generate preview image', err);
-        }
-      }, 1000);
-    } else {
-        setFinalImageUrl(null);
-    }
-
-    return () => clearTimeout(timeoutId);
-  }, [imageUrl, data, isGeneratingImage]);
 
   return (
     <div className="group relative w-full aspect-[9/16] rounded-3xl overflow-hidden shadow-xl transition-all hover:shadow-2xl hover:scale-[1.01] bg-white select-none">
       
-      {/* 1. Capture Area (The visual content) */}
-      <div ref={cardRef} className="relative w-full h-full bg-white flex flex-col">
+      {/* Capture Area - Added ID for the downloader to target */}
+      <div 
+        id={`poster-card-${data.id}`}
+        ref={cardRef} 
+        className="relative w-full h-full bg-white flex flex-col"
+      >
         
         {/* Background Image Layer */}
         <div className="absolute inset-0 z-0">
@@ -77,8 +53,9 @@ export const PosterCard: React.FC<PosterCardProps> = ({ data, imageUrl, isGenera
             {/* Header */}
             <div className="flex justify-between items-start">
                 <div className="flex items-center space-x-2 bg-white/10 backdrop-blur-md px-3 py-1.5 rounded-full border border-white/20 shadow-sm">
+                    {/* Updated Logo to Lightning (Zap) */}
                     <div className="w-4 h-4 bg-white rounded-full flex items-center justify-center">
-                        <span className="text-[#002FA7] text-[10px] font-black">S</span>
+                        <Zap className="w-2.5 h-2.5 text-[#002FA7] fill-current" />
                     </div>
                     <span className="text-[10px] font-bold tracking-widest uppercase">Shining AI</span>
                 </div>
@@ -129,47 +106,6 @@ export const PosterCard: React.FC<PosterCardProps> = ({ data, imageUrl, isGenera
             </div>
         </div>
       </div>
-
-      {/* 2. Native Save Overlay (Invisible Image) */}
-      {/* This image sits on top of the content (z-40) to intercept Long Press / Right Click */}
-      {finalImageUrl && (
-        <img 
-            src={finalImageUrl} 
-            className="absolute inset-0 w-full h-full opacity-0 z-40 cursor-context-menu"
-            alt="Long press to save"
-            style={{ touchAction: 'auto' }}
-        />
-      )}
-
-      {/* 3. Interaction Hint Layer (z-50) */}
-      {/* Pointer events none so it doesn't block the image interaction, except for buttons */}
-      <div className="absolute inset-0 z-50 pointer-events-none transition-opacity duration-300 opacity-0 group-hover:opacity-100 flex flex-col justify-between p-4">
-         
-         {/* Regenerate Button (Top Right) */}
-         <div className="flex justify-end">
-            <button 
-                onClick={(e) => {
-                    e.stopPropagation();
-                    onRegenerateImage();
-                }}
-                className="pointer-events-auto p-3 rounded-full bg-white/20 text-white backdrop-blur-md border border-white/30 shadow-lg hover:bg-white hover:text-[#002FA7] transition-all transform hover:rotate-180 duration-500"
-                title="重新生成背景"
-            >
-                <RefreshCw className="w-5 h-5" />
-            </button>
-         </div>
-
-         {/* Center Hint */}
-         {finalImageUrl && (
-             <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                <div className="bg-black/60 backdrop-blur-md text-white px-5 py-2.5 rounded-full text-sm font-bold shadow-2xl flex items-center gap-2 transform translate-y-4 group-hover:translate-y-0 transition-transform">
-                    <Download className="w-4 h-4" />
-                    <span>长按或右键保存</span>
-                </div>
-             </div>
-         )}
-      </div>
-
     </div>
   );
 };

@@ -3,7 +3,8 @@ import { GeneratedImage, GenerationStep, MarketingCardData } from './types';
 import { generateCardImage, generateMarketingCopy } from './services/geminiService';
 import { PosterCard } from './components/PosterCard';
 import { LoadingScreen } from './components/LoadingScreen';
-import { Zap, LayoutGrid, ChevronRight, Sparkles, TrendingUp, ArrowUpRight, Target } from 'lucide-react';
+import { Zap, LayoutGrid, ChevronRight, Sparkles, TrendingUp, ArrowUpRight, Target, Download, Loader2 } from 'lucide-react';
+import { toPng } from 'html-to-image';
 
 // Large pool of topics for random selection
 const TOPIC_POOL = [
@@ -51,6 +52,7 @@ const App: React.FC = () => {
   const [, setActiveCardIndex] = useState<number>(0);
   const [loadingMsg, setLoadingMsg] = useState<string>('');
   const [inspiration, setInspiration] = useState<string>('');
+  const [isDownloading, setIsDownloading] = useState(false);
 
   // Get random content on every refresh/mount
   const randomTopics = useMemo(() => getRandomItems(TOPIC_POOL, 15), []);
@@ -120,6 +122,39 @@ const App: React.FC = () => {
       setInspiration(`基于思路：${strategyTitle}。生成相关营销海报。`);
   };
 
+  const handleDownloadAll = async () => {
+      setIsDownloading(true);
+      const cardIds = cards.map(c => c.id);
+      
+      // Simple delay helper
+      const wait = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+
+      for (const id of cardIds) {
+          const element = document.getElementById(`poster-card-${id}`);
+          if (element) {
+              try {
+                  // Wait a bit between downloads to ensure browser doesn't block them
+                  if (id > 1) await wait(500);
+
+                  const dataUrl = await toPng(element, { 
+                      cacheBust: true, 
+                      pixelRatio: 2, 
+                      useCORS: true,
+                      backgroundColor: '#ffffff'
+                  });
+                  
+                  const link = document.createElement('a');
+                  link.download = `闪灵AI-营销海报-${id}.png`;
+                  link.href = dataUrl;
+                  link.click();
+              } catch (err) {
+                  console.error(`Could not download card ${id}`, err);
+              }
+          }
+      }
+      setIsDownloading(false);
+  };
+
   // Intro Screen
   if (step === GenerationStep.IDLE) {
     return (
@@ -130,7 +165,7 @@ const App: React.FC = () => {
 
         <div className="relative z-10 container mx-auto px-6 py-12 flex flex-col items-center text-center">
             <div className="mb-6 p-6 rounded-[2rem] bg-white shadow-2xl border border-gray-100 inline-block rotate-3 hover:rotate-0 transition-transform duration-500">
-                <Zap className="w-16 h-16 text-[#002FA7] mx-auto" />
+                <Zap className="w-16 h-16 text-[#002FA7] mx-auto fill-current" />
             </div>
             
             <h1 className="text-5xl md:text-7xl font-black mb-3 tracking-tighter text-[#1D1D1F]">
@@ -248,7 +283,7 @@ const App: React.FC = () => {
         <header className="sticky top-0 z-40 bg-white/80 backdrop-blur-md border-b border-gray-200 px-6 py-4 flex justify-between items-center shadow-sm">
             <div className="flex items-center space-x-2">
                 <div className="w-6 h-6 bg-[#002FA7] rounded-md flex items-center justify-center text-white">
-                     <Zap className="w-4 h-4" />
+                     <Zap className="w-4 h-4 fill-current" />
                 </div>
                 <span className="font-bold tracking-tight text-lg">SHINING AI</span>
             </div>
@@ -261,7 +296,7 @@ const App: React.FC = () => {
         </header>
 
         <main className="container mx-auto px-4 pt-10">
-            <div className="flex justify-between items-end mb-10 px-2">
+            <div className="flex flex-col md:flex-row justify-between items-end mb-10 px-2 gap-4">
                 <div>
                     <h2 className="text-4xl font-black tracking-tight mb-2">今日产出</h2>
                     <div className="flex items-center text-gray-500 font-medium text-sm">
@@ -269,15 +304,41 @@ const App: React.FC = () => {
                         {new Date().toLocaleDateString('zh-CN')} • 4 份营销物料
                     </div>
                 </div>
-                {step === GenerationStep.GENERATING_IMAGES && (
-                   <div className="flex items-center space-x-3 px-4 py-2 bg-white rounded-full shadow-sm border border-gray-100">
-                       <div className="relative w-3 h-3">
-                            <span className="absolute inset-0 bg-[#002FA7] rounded-full opacity-20 animate-ping"></span>
-                            <span className="relative block w-3 h-3 bg-[#002FA7] rounded-full"></span>
-                       </div>
-                       <span className="text-xs font-bold text-[#002FA7]">图像渲染中...</span>
-                   </div>
-                )}
+                
+                <div className="flex gap-4">
+                     {step === GenerationStep.GENERATING_IMAGES && (
+                        <div className="flex items-center space-x-3 px-4 py-2 bg-white rounded-full shadow-sm border border-gray-100">
+                            <div className="relative w-3 h-3">
+                                    <span className="absolute inset-0 bg-[#002FA7] rounded-full opacity-20 animate-ping"></span>
+                                    <span className="relative block w-3 h-3 bg-[#002FA7] rounded-full"></span>
+                            </div>
+                            <span className="text-xs font-bold text-[#002FA7]">图像渲染中...</span>
+                        </div>
+                    )}
+
+                    {/* One-Click Download Button */}
+                    <button 
+                        onClick={handleDownloadAll}
+                        disabled={isDownloading || step !== GenerationStep.COMPLETE}
+                        className={`flex items-center px-5 py-2.5 rounded-full font-bold text-sm shadow-lg transition-all
+                            ${isDownloading || step !== GenerationStep.COMPLETE 
+                                ? 'bg-gray-200 text-gray-400 cursor-not-allowed' 
+                                : 'bg-[#002FA7] text-white hover:bg-blue-800 hover:shadow-xl active:scale-95'
+                            }`}
+                    >
+                        {isDownloading ? (
+                            <>
+                                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                                下载中...
+                            </>
+                        ) : (
+                            <>
+                                <Download className="w-4 h-4 mr-2" />
+                                一键下载全部
+                            </>
+                        )}
+                    </button>
+                </div>
             </div>
 
             {/* Grid Layout */}
