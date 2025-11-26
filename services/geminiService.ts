@@ -1,10 +1,8 @@
 import { GoogleGenAI, Type } from "@google/genai";
 import { MarketingCardData } from "../types";
 
-// Ensure process.env.API_KEY exists or fallback to empty string to prevent crash
-// Note: Requests will fail if key is missing, but the app will load.
-const apiKey = process.env.API_KEY || '';
-const ai = new GoogleGenAI({ apiKey });
+// Access environment variables using process.env.API_KEY as per guidelines
+const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
 const SYSTEM_INSTRUCTION = `
 You are the Chief Creative Officer for "Shining AI" (闪灵AI). 
@@ -30,8 +28,8 @@ Tone: Professional, Innovative, High-Tech, Efficient, Aesthetic.
 `;
 
 export const generateMarketingCopy = async (userPrompt?: string): Promise<MarketingCardData[]> => {
-  if (!apiKey) {
-    throw new Error("API Key is missing. Please configure Vercel Environment Variables.");
+  if (!process.env.API_KEY) {
+    throw new Error("API Key is missing. Please set 'API_KEY' in your Environment Variables.");
   }
 
   try {
@@ -91,7 +89,7 @@ export const generateMarketingCopy = async (userPrompt?: string): Promise<Market
 };
 
 export const generateCardImage = async (prompt: string): Promise<string> => {
-  if (!apiKey) return `https://picsum.photos/seed/${Math.random()}/600/900`;
+  if (!process.env.API_KEY) return `https://picsum.photos/seed/${Math.random()}/600/900`;
 
   try {
     // We append specific style instructions to ensure consistency
