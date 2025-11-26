@@ -26,15 +26,27 @@ Tone: Professional, Innovative, High-Tech, Efficient, Aesthetic.
 
 // Helper to get API Key safely across environments
 const getApiKey = (): string | undefined => {
-  return process.env.API_KEY;
+  // 1. Try Vite's import.meta.env (Standard for Vite apps on Vercel)
+  // @ts-ignore
+  if (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.VITE_API_KEY) {
+    // @ts-ignore
+    return import.meta.env.VITE_API_KEY;
+  }
+
+  // 2. Fallback to process.env (Node.js environments or if manually polyfilled)
+  if (typeof process !== 'undefined' && process.env && process.env.API_KEY) {
+    return process.env.API_KEY;
+  }
+
+  return undefined;
 };
 
 // Lazy initialization function
 const getAI = () => {
   const apiKey = getApiKey();
   if (!apiKey) {
-    console.error("API Key not found. Checked process.env.API_KEY");
-    throw new Error("API Key is missing. Please set API_KEY in your environment settings.");
+    console.error("API Key not found. Checked import.meta.env.VITE_API_KEY and process.env.API_KEY");
+    throw new Error("API Key is missing. Please set VITE_API_KEY in your Vercel environment settings.");
   }
   return new GoogleGenAI({ apiKey });
 };
