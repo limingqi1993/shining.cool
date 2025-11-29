@@ -1,3 +1,5 @@
+export type CardLayoutStyle = 'minimal' | 'handwritten' | 'comic' | 'magazine';
+
 export interface MarketingCardData {
   id: number;
   title: string;
@@ -5,6 +7,7 @@ export interface MarketingCardData {
   body: string;
   visualPrompt: string; // The prompt used to generate the background image
   tags: string[];
+  layoutStyle: CardLayoutStyle;
   isPromoCard?: boolean;
 }
 

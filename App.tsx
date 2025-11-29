@@ -1,47 +1,26 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useEffect } from 'react';
 import { GeneratedImage, GenerationStep, MarketingCardData, XiaohongshuContent } from './types';
-import { generateCardImage, generateMarketingCopy } from './services/geminiService';
+import { generateCardImage, generateMarketingCopy, fetchTrendingTopics, fetchViralStrategies } from './services/geminiService';
 import { PosterCard } from './components/PosterCard';
 import { LoadingScreen } from './components/LoadingScreen';
-import { Zap, LayoutGrid, ChevronRight, Sparkles, TrendingUp, ArrowUpRight, Target, Download, Loader2, Copy, Check } from 'lucide-react';
+import { Zap, LayoutGrid, ChevronRight, Sparkles, TrendingUp, ArrowUpRight, Target, Download, Loader2, Copy, Check, RefreshCw, Search } from 'lucide-react';
 import { toPng } from 'html-to-image';
 
-// Large pool of topics for random selection
-const TOPIC_POOL = [
+// Initial Static Pools (Fallbacks)
+const INITIAL_TOPIC_POOL = [
     "🤖 AI视频元年", "🎬 短剧出海热潮", "📉 降本增效", "🌸 繁花王家卫美学",
     "📖 情感叙事营销", "🎨 多巴胺配色", "🏙️ 赛博朋克视觉", "🧘 松弛感生活",
     "🎥 Sora震撼发布", "🦄 AIGC独角兽", "📱 竖屏美学", "🕹️ 像素风复古",
     "🌿 环保可持续", "🐉 国潮新风尚", "🎭 虚拟人带货", "🐕 萌宠经济",
-    "💤 助眠ASMR", "🏕️ City Walk", "💰 银发经济", "🧠 脑机接口",
-    "🌌 元宇宙余温", "📸 胶片感复兴", "🎵 听觉营销", "🤖 具身智能",
-    "👠 老钱风/静奢", "🍭 Y2K千禧风", "🧊 清冷感", "🔥 情绪价值", 
-    "📦 开箱测评", "👀 黄金前三秒", "🔄 私域流量", "⚡ 病毒式传播",
-    "🌈 极繁主义", "🕶️ 极简主义", "🎞️ 胶片质感", "🚀 生成式搜索",
-    "💡 创意不仅是想法", "🎯 精准获客", "📈 转化率飙升", "🌟 打造个人IP",
-    "🔮 赛博禅意", "🎋 新中式美学", "🎮 游戏化营销", "🤖 虚拟偶像",
-    "📢 种草经济", "🧩 拼贴艺术", "🌊 酸性设计", "🤳 UGC共创",
-    "🕰️ 怀旧营销", "🚀 第二曲线", "🧬 数字孪生", "🧿 裸眼3D"
+    "💤 助眠ASMR", "🏕️ City Walk", "💰 银发经济", "🧠 脑机接口"
 ];
 
-const STRATEGY_POOL = [
-    { title: "复刻《繁花》光影美学", desc: "用自然语言搜索王家卫式抽帧与色彩，一键生成致敬海报。" },
-    { title: "3分钟拆解爆款短剧", desc: "利用视频理解能力，快速提炼反转结构，生成拉片分镜。" },
-    { title: "寻找Y2K千禧年素材", desc: "精准定位复古DV画质与低保真镜头，打造复古营销物料。" },
-    { title: "5分钟搞定比稿Moodboard", desc: "直接搜索抽象概念（如'五彩斑斓的黑'），AI自动排版输出。" },
-    { title: "匹配网易云式深夜文案", desc: "搜索'孤独'、'城市夜景'、'破碎感'，为走心文案配好图。" },
-    { title: "Sora风格科幻分镜搭建", desc: "在AI故事板中输入提示词，从零构建超现实主义视觉方案。" },
-    { title: "甲方'要大气'的具象化", desc: "搜索航拍、广角、史诗感镜头，用画面定义'大气'。" },
-    { title: "高转化率的黄金前三秒", desc: "分析高点击率视频开头，生成吸引眼球的封面创意。" },
-    { title: "美妆种草视频去重", desc: "搜索'涂口红'、'试色'特定帧，规避同质化素材，找寻新颖运镜。" },
-    { title: "科技发布会Keynote配图", desc: "搜索'极简几何'、'光束'、'粒子'，快速生成高大上PPT背景。" },
-    { title: "美食探店Vlog脚本", desc: "用故事板功能，先排版'特写'、'全景'、'反应'镜头，再填入素材。" },
-    { title: "情感博主治愈系封面", desc: "搜索'日落'、'海边背影'、'胶片颗粒'，营造高氛围感封面。" }
+const INITIAL_STRATEGY_POOL = [
+    { title: "复刻《繁花》光影", desc: "用自然语言搜索王家卫式抽帧与色彩，生成致敬海报。" },
+    { title: "3分钟拆解爆款", desc: "利用视频理解能力，快速提炼反转结构，生成拉片分镜。" },
+    { title: "Y2K千禧年素材", desc: "精准定位复古DV画质与低保真镜头，打造复古营销物料。" },
+    { title: "情绪价值封面", desc: "搜索'日落'、'海边背影'、'胶片颗粒'，营造高氛围感封面。" }
 ];
-
-const getRandomItems = <T,>(array: T[], count: number): T[] => {
-    const shuffled = [...array].sort(() => 0.5 - Math.random());
-    return shuffled.slice(0, count);
-};
 
 // Copy Button Component
 const CopyButton: React.FC<{ text: string, label?: string }> = ({ text, label }) => {
@@ -74,8 +53,13 @@ const App: React.FC = () => {
   const [inspiration, setInspiration] = useState<string>('');
   const [isDownloading, setIsDownloading] = useState(false);
 
-  const randomTopics = useMemo(() => getRandomItems(TOPIC_POOL, 15), []);
-  const randomStrategies = useMemo(() => getRandomItems(STRATEGY_POOL, 4), []);
+  // Live Data State
+  const [topics, setTopics] = useState<string[]>(INITIAL_TOPIC_POOL);
+  const [strategies, setStrategies] = useState<{title: string, desc: string}[]>(INITIAL_STRATEGY_POOL);
+  
+  // Loading states for refresh
+  const [isLoadingTopics, setIsLoadingTopics] = useState(false);
+  const [isLoadingStrategies, setIsLoadingStrategies] = useState(false);
 
   const getCardImage = (id: number) => images.find(img => img.cardId === id)?.imageUrl;
 
@@ -137,34 +121,68 @@ const App: React.FC = () => {
   const handleDownloadAll = async () => {
       setIsDownloading(true);
       const cardIds = cards.map(c => c.id);
-      const wait = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+      
+      try {
+        await document.fonts.ready;
+        const wait = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
-      for (const id of cardIds) {
-          const element = document.getElementById(`poster-card-${id}`);
-          if (element) {
-              try {
-                  if (id > 1) await wait(500);
-                  const dataUrl = await toPng(element, { 
-                      cacheBust: true, pixelRatio: 2, useCORS: true, backgroundColor: '#ffffff',
-                      filter: (node) => {
-                          // Exclude the download button from the captured image
-                          return !node.classList?.contains('download-btn-exclude');
-                      }
-                  });
-                  const link = document.createElement('a');
-                  link.download = `闪灵AI-营销海报-${id}.png`;
-                  link.href = dataUrl;
-                  link.click();
-              } catch (err) {
-                  console.error(`Could not download card ${id}`, err);
-              }
-          }
+        for (const id of cardIds) {
+            const element = document.getElementById(`poster-card-${id}`);
+            if (element) {
+                try {
+                    // Small delay between downloads to prevent browser throttling
+                    if (id > 1) await wait(300);
+                    
+                    const options = { 
+                        cacheBust: true, 
+                        pixelRatio: 2, 
+                        useCORS: true, 
+                        backgroundColor: '#ffffff',
+                        filter: (node: HTMLElement) => !node.classList?.contains('download-btn-exclude')
+                    };
+
+                    // Double capture technique for reliable font rendering
+                    await toPng(element, options); // Warmup
+                    await wait(100);
+                    const dataUrl = await toPng(element, options); // Actual
+
+                    const link = document.createElement('a');
+                    link.download = `闪灵AI-营销海报-${id}.png`;
+                    link.href = dataUrl;
+                    link.click();
+                } catch (err) {
+                    console.error(`Could not download card ${id}`, err);
+                }
+            }
+        }
+      } catch (error) {
+          console.error("Batch download failed", error);
+      } finally {
+        setIsDownloading(false);
       }
-      setIsDownloading(false);
   };
 
   // Helper to get formatted hashtags (ensure single hash)
   const getFormattedTags = (tags: string[]) => tags.map(t => `#${t.replace(/^#/, '')}`).join(' ');
+
+  // Refresh Handlers
+  const refreshTopics = async () => {
+    setIsLoadingTopics(true);
+    const newTopics = await fetchTrendingTopics();
+    if (newTopics && newTopics.length > 0) {
+        setTopics(newTopics);
+    }
+    setIsLoadingTopics(false);
+  };
+
+  const refreshStrategies = async () => {
+    setIsLoadingStrategies(true);
+    const newStrategies = await fetchViralStrategies();
+    if (newStrategies && newStrategies.length > 0) {
+        setStrategies(newStrategies);
+    }
+    setIsLoadingStrategies(false);
+  };
 
   if (step === GenerationStep.IDLE) {
     return (
@@ -210,46 +228,76 @@ const App: React.FC = () => {
             </button>
 
             <div className="w-full max-w-4xl grid grid-cols-1 md:grid-cols-2 gap-8">
+                {/* Hot Topics Section */}
                 <div className="bg-white/40 backdrop-blur-md rounded-3xl p-6 border border-white/50 shadow-sm h-full flex flex-col">
-                    <div className="flex items-center gap-2 mb-4 opacity-80">
-                        <TrendingUp className="w-4 h-4 text-[#002FA7]" />
-                        <span className="text-xs font-bold text-gray-500 tracking-widest uppercase">热点灵感推荐</span>
+                    <div className="flex items-center justify-between mb-4 opacity-80">
+                        <div className="flex items-center gap-2">
+                            <TrendingUp className="w-4 h-4 text-[#002FA7]" />
+                            <span className="text-xs font-bold text-gray-500 tracking-widest uppercase">热点灵感推荐</span>
+                        </div>
+                        <button 
+                            onClick={refreshTopics}
+                            disabled={isLoadingTopics}
+                            className="p-1.5 rounded-full hover:bg-white/60 text-gray-400 hover:text-[#002FA7] transition-all disabled:opacity-50"
+                            title="全网搜索最新热点"
+                        >
+                            {isLoadingTopics ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Search className="w-3.5 h-3.5" />}
+                        </button>
                     </div>
                     <div className="flex flex-wrap gap-2 content-start">
-                        {randomTopics.map((topic, index) => (
-                            <button
-                                key={index}
-                                onClick={() => handleTopicClick(topic)}
-                                className="group flex items-center bg-white border border-gray-100 px-3 py-1.5 rounded-full shadow-sm hover:shadow-md hover:border-blue-100 hover:text-[#002FA7] active:scale-95 transition-all duration-200"
-                            >
-                                <span className="text-sm font-medium text-gray-600 group-hover:text-[#002FA7]">{topic}</span>
-                            </button>
-                        ))}
+                        {isLoadingTopics ? (
+                            <div className="w-full py-8 text-center text-xs text-gray-400">正在搜索小红书热点...</div>
+                        ) : (
+                            topics.slice(0, 15).map((topic, index) => (
+                                <button
+                                    key={index}
+                                    onClick={() => handleTopicClick(topic)}
+                                    className="group flex items-center bg-white border border-gray-100 px-3 py-1.5 rounded-full shadow-sm hover:shadow-md hover:border-blue-100 hover:text-[#002FA7] active:scale-95 transition-all duration-200"
+                                >
+                                    <span className="text-sm font-medium text-gray-600 group-hover:text-[#002FA7]">{topic}</span>
+                                </button>
+                            ))
+                        )}
                     </div>
                 </div>
 
+                {/* Viral Strategies Section */}
                 <div className="bg-white/40 backdrop-blur-md rounded-3xl p-6 border border-white/50 shadow-sm h-full">
-                    <div className="flex items-center gap-2 mb-4 opacity-80">
-                        <Target className="w-4 h-4 text-[#002FA7]" />
-                        <span className="text-xs font-bold text-gray-500 tracking-widest uppercase">爆款思路参考</span>
+                    <div className="flex items-center justify-between mb-4 opacity-80">
+                         <div className="flex items-center gap-2">
+                            <Target className="w-4 h-4 text-[#002FA7]" />
+                            <span className="text-xs font-bold text-gray-500 tracking-widest uppercase">爆款思路参考</span>
+                        </div>
+                         <button 
+                            onClick={refreshStrategies}
+                            disabled={isLoadingStrategies}
+                            className="p-1.5 rounded-full hover:bg-white/60 text-gray-400 hover:text-[#002FA7] transition-all disabled:opacity-50"
+                            title="全网搜索爆款玩法"
+                        >
+                             {isLoadingStrategies ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Search className="w-3.5 h-3.5" />}
+                        </button>
                     </div>
                     <div className="space-y-3">
-                        {randomStrategies.map((strat, index) => (
-                            <button
-                                key={index}
-                                onClick={() => handleStrategyClick(strat.title)}
-                                className="w-full text-left group bg-white border border-gray-100 p-3 rounded-2xl shadow-sm hover:shadow-md hover:border-blue-100 transition-all duration-200 flex items-start gap-3 active:scale-95"
-                            >
-                                <div className="mt-1 min-w-[1.5rem] h-6 w-6 bg-blue-50 text-[#002FA7] rounded-full flex items-center justify-center text-xs font-bold">
-                                    {index + 1}
-                                </div>
-                                <div>
-                                    <h4 className="text-sm font-bold text-gray-800 group-hover:text-[#002FA7] transition-colors">{strat.title}</h4>
-                                    <p className="text-xs text-gray-400 mt-1 leading-relaxed">{strat.desc}</p>
-                                </div>
-                                <ArrowUpRight className="w-4 h-4 text-gray-300 ml-auto opacity-0 group-hover:opacity-100 transition-all" />
-                            </button>
-                        ))}
+                        {isLoadingStrategies ? (
+                            <div className="w-full py-8 text-center text-xs text-gray-400">正在分析爆款视频玩法...</div>
+                        ) : (
+                            strategies.map((strat, index) => (
+                                <button
+                                    key={index}
+                                    onClick={() => handleStrategyClick(strat.title)}
+                                    className="w-full text-left group bg-white border border-gray-100 p-3 rounded-2xl shadow-sm hover:shadow-md hover:border-blue-100 transition-all duration-200 flex items-start gap-3 active:scale-95"
+                                >
+                                    <div className="mt-1 min-w-[1.5rem] h-6 w-6 bg-blue-50 text-[#002FA7] rounded-full flex items-center justify-center text-xs font-bold">
+                                        {index + 1}
+                                    </div>
+                                    <div>
+                                        <h4 className="text-sm font-bold text-gray-800 group-hover:text-[#002FA7] transition-colors">{strat.title}</h4>
+                                        <p className="text-xs text-gray-400 mt-1 leading-relaxed">{strat.desc}</p>
+                                    </div>
+                                    <ArrowUpRight className="w-4 h-4 text-gray-300 ml-auto opacity-0 group-hover:opacity-100 transition-all" />
+                                </button>
+                            ))
+                        )}
                     </div>
                 </div>
             </div>
